@@ -1,7 +1,7 @@
 module Executor
   module LocalStorage
     def workdir
-      yield @job.options.workdir
+        yield (ENV['EXECUTOR_MOUNT'] or @job.options.workdir)
     end
   end
 end

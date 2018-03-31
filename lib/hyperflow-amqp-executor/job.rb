@@ -78,9 +78,26 @@ module Executor
       results
     end
 
+    def docker_cmd
+      if defined?(@job.options.container)
+        Executor::logger.debug "[#{@id}] defined #{@job.options.container}"
+        ["docker",
+         "run",
+         "-v",
+         "/var/run/docker.sock:/var/run/docker.sock",
+         "-v",
+         @job.options.workdir+":"+Executor::settings.docker_mount,
+         "-w="+Executor::settings.docker_mount,
+         @job.options.container
+        ]
+      else
+        []
+      end
+    end
+
     def cmdline
        if @job.args.is_a? Array
-         ([@job.executable] + @job.args).map { |e| e.to_s }
+        ( docker_cmd + [@job.executable] + @job.args).map { |e| e.to_s }
       else
         "#{@job.executable} #{@job.args}"
       end
@@ -89,7 +106,13 @@ module Executor
     def execute
       begin
         Executor::logger.debug "[#{@id}] Executing #{cmdline}"
+        if defined?(@job.options.container)
+          Executor::logger.debug "[#{@id}] defined #{@job.options.container}"
+        else
+          Executor::logger.debug "[#{@id}] notdefined #{@job.options.container}"
+        end
         stdout, stderr, status = Open3.capture3(*cmdline, chdir: @workdir)
+        Executor::logger.debug "[#{@id}] TEST :  #{stdout} #{stderr} #{status} \n" 
 
         {exit_status: status, stderr: stderr, stdout: stdout}
       rescue Exception => e
