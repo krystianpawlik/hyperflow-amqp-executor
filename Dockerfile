@@ -2,6 +2,7 @@ FROM ubuntu:16.04
 
 # Install Ruby and Rails dependencies
 RUN apt-get update && apt-get install -y \
+  libcurl4-openssl-dev \
   docker.io \
   ruby \
   ruby-dev \
