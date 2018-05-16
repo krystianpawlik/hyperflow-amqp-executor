@@ -8,7 +8,9 @@ module Executor
 
     def stage_in
       @bucket = @provider.directories.get(@job.options.bucket)
-
+      unless ENV['INFLUXDB_URL'].nil?
+        DatabaseLoger.start_downloadtimer(ENV['INFLUXDB_URL'], @id , @job.options.hfId, @job.options.wfid)
+      end
       @job.inputs.each do |file|
         Executor::logger.debug "[#{@id}] Downloading #{file.name}"
         File.open(@workdir+"/"+file.name, File::RDWR|File::CREAT) do |local_file|
@@ -17,6 +19,9 @@ module Executor
             # print "\rDownloading #{file.name}: #{100*(total_bytes-remaining_bytes)/total_bytes}%"
           end
         end
+      end
+      unless ENV['INFLUXDB_URL'].nil?
+        DatabaseLoger.stop_downloadtimer(ENV['INFLUXDB_URL'], @id , @job.options.hfId, @job.options.wfid)
       end
     end
 

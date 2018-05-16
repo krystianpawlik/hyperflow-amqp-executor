@@ -1,3 +1,6 @@
+
+require_relative 'database_loger'
+
 module Executor
   class Job
     attr_reader :metrics
@@ -30,6 +33,11 @@ module Executor
     def run
       @metrics[:timestamps]["job.started"] = Executor::publish_event 'job.started', "job.#{@id}.started", job: @id, thread: Thread.current.__id__
       @metrics[:thread] = Thread.current.__id__
+
+      unless ENV['INFLUXDB_URL'].nil?
+        Executor::logger.debug "[#{@id}] start"
+        DatabaseLoger.start_job_notyfication(ENV['INFLUXDB_URL'], @id, @job.options.hfId, @job.options.wfid);
+      end
 
       results = {}
       
@@ -67,6 +75,11 @@ module Executor
       end
       @metrics[:timestamps]["job.finished"] = Executor::publish_event 'job.finished', "job.#{@id}.finished", job: @id, executable: @job.executable, exit_status: results[:exit_status], metrics: @metrics, thread: Thread.current.__id__
 
+      unless ENV['INFLUXDB_URL'].nil?
+        Executor::logger.debug "[#{@id}] finished"
+        DatabaseLoger.finish_job_notyfication(ENV['INFLUXDB_URL'], @id , @job.options.hfId, @job.options.wfid);
+      end
+
       results[:metrics] = @metrics
       results
     end
@@ -89,8 +102,16 @@ module Executor
     def execute
       begin
         Executor::logger.debug "[#{@id}] Executing #{cmdline}"
+
+        unless ENV['INFLUXDB_URL'].nil?
+          DatabaseLoger.start_ecutiontimer(ENV['INFLUXDB_URL'], @id , @job.options.hfId, @job.options.wfid)
+        end
+
         stdout, stderr, status = Open3.capture3(*cmdline, chdir: @workdir)
 
+        unless ENV['INFLUXDB_URL'].nil?
+          DatabaseLoger.stop_ecutiontimer(ENV['INFLUXDB_URL'], @id , @job.options.hfId, @job.options.wfid)
+        end
         {exit_status: status, stderr: stderr, stdout: stdout}
       rescue Exception => e
         Executor::logger.error "[#{@id}] Error executing job: #{e}"
