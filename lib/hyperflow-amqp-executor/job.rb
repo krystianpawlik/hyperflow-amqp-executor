@@ -8,6 +8,9 @@ module Executor
     def initialize(id, job)
       @job = job
       @id = id
+
+      @dataLoger = DatabaseLoger.new(ENV['INFLUXDB_URL'],Executor::id,@id,@job.options.procId,@job.options.hfId, @job.options.wfid)
+
       @metrics = {
               timestamps: { },
               executor: Executor::id
@@ -38,6 +41,8 @@ module Executor
         Executor::logger.debug "[#{@id}] start"
         DatabaseLoger.start_job_notyfication(ENV['INFLUXDB_URL'], @id, @job.options.hfId, @job.options.wfid);
       end
+
+      @dataLoger.log_start_job()
 
       results = {}
       
@@ -86,8 +91,12 @@ module Executor
 
     def publish_events(name)
       @metrics[:timestamps]["#{name}.started"]  = Executor::publish_event "job.#{name}.started", "job.#{@id}.#{name}.started", job: @id, thread: Thread.current.__id__
+      @dataLoger.log_start_subStage(name)
       results = yield
       @metrics[:timestamps]["#{name}.finished"] = Executor::publish_event "job.#{name}.finished", "job.#{@id}.#{name}.finished", {job: @id, thread: Thread.current.__id__}.merge(results || {})
+      if(name == "stage_out")
+        @dataLoger.log_finish_job()
+      end
       results
     end
 
@@ -106,6 +115,8 @@ module Executor
         unless ENV['INFLUXDB_URL'].nil?
           DatabaseLoger.start_ecutiontimer(ENV['INFLUXDB_URL'], @id , @job.options.hfId, @job.options.wfid)
         end
+
+        #@dataLoger.log_start_executing()
 
         stdout, stderr, status = Open3.capture3(*cmdline, chdir: @workdir)
 
