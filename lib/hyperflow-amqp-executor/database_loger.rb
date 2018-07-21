@@ -91,7 +91,7 @@ module Executor
                     values: {  stage: stage, workflow_stage: @stage, stage_name: start_or_finish },
                     tags:   { wfid: @wfid, hfId: @hfId, workerId: @id ,jobId: @jobId , procId: @procId ,workflow_stage: @stage}
                 }
-                Executor::logger.debug "write to database #{data}"
+                #Executor::logger.debug "write to database #{data}"
 
                 @influxdb.write_point(metric, data, time_precision)
             end
